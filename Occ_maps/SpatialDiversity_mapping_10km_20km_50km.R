@@ -28,25 +28,6 @@ library(scales)
 # Read in Occurrences data
 # only usable lat/long data (NAs and invalid lat/long removed)
 
-#veg list 1 = 691,983 rows
-#occurrences_data <- read_excel("Agrobio_veg_list/Outputs/Occurrence_data/occurrences_data_veglist1.xlsx")
-
-#veg list 2 = 227,509 rows
-#occurrences_data <- read_excel("Agrobio_veg_list/Outputs/Occurrence_data/occurrences_data_veglist2.xlsx")
-
-#veg list 3 = 86,301 rows
-#occurrences_data <- read_excel("Agrobio_veg_list/Outputs/Occurrence_data/occurrences_data_veglist3.xlsx")
-
-#veg list 4 = 85,554 rows XXXXXXDELETE
-#occurrences_data <- read_excel("Agrobio_veg_list/Outputs/Occurrence_data/occurrences_data_veglist4.xlsx")
-
-# veg list 4 rerun = 14,561 rows
-#occurrences_data <- read_excel("Agrobio_veg_list/Outputs/Occurrence_data/occurrences_data_veglist4_rerun.xlsx")
-
-
-
-
-
 ######### NEW DATA 2025_12_12 ############
 
 # new veg list 1
@@ -621,6 +602,7 @@ for (sz in names(grid_sizes)) {
 }
 
 # End of script
+
 
 
 
