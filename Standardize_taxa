@@ -1,0 +1,108 @@
+
+
+# Run column E, Taxon through taxon cleaning for WFO and GRIN
+install.packages("httr")
+library(httr)
+install.packages("jsonlite")
+library(jsonlite)
+install.packages("readr")
+library(readr)
+
+# standardize 1, 2025_07_16 CWRs for veglist
+cwr_veg_list <- read_csv("C:/Users/sarah/Downloads/CWR genepools for veg list 07 July 2025_SG.csv")
+df <- cwr_veg_list
+
+# standardize 2, 2025_07_21
+veg_list_2 <- read_excel("C:/Users/sarah/Desktop/Vegetable species list_1450_2.xlsx", sheet = 2)
+veg_list_2 <- veg_list_2 %>%
+  rename(Taxon = `Species name`)
+df <- veg_list_2
+
+# standardize 3,
+ptftw_veg_list_3 <- read_excel("Vegetable_list_plants_that_feed_the_world.xlsx")
+# make a new field of full taxa
+ptftw_veg_list_3 <- ptftw_veg_list_3 %>%
+  unite(full_taxa, Genus, `Species epithet`, Authority, sep = " ", na.rm = TRUE, remove = FALSE)
+ptftw_veg_list_3 <- ptftw_veg_list_3%>%
+  rename(Taxon = `full_taxa`)
+df <- ptftw_veg_list_3
+
+
+# standardize 4, 2025_09_23
+redlist_download <- read_csv("Agrobio_veg_list/RedList_results_download/assessments_with_html.csv") %>%
+  rename(Taxon = scientificName)
+df <- redlist_download
+
+
+# load functions
+source('Functions/query_taxa_resolver.R')   # import function query_taxa_resolver
+source('Functions/extract_best_result.R') # import function extract_best_result
+
+# taxa list to be standardised
+taxa_list <- unique(trimws(na.omit(df$Taxon))) #update to name of taxon column
+
+# loop trough taxa list and query the API
+result_queries_WFO <- list()
+result_queries_GRIN <- list()
+counter <- 0
+for (i in taxa_list){
+  print(paste(round(counter / length(taxa_list) * 100, 2), "%", i))
+  best_result_WFO <- query_taxa_resolver(i, c('196'))
+  best_result_GRIN <- query_taxa_resolver(i, c('6'))
+  result_queries_WFO <- append(result_queries_WFO, list(best_result_WFO))
+  result_queries_GRIN <- append(result_queries_GRIN, list(best_result_GRIN))
+  counter <- counter + 1
+}
+
+# extract best result from the result of the queries
+res_WFO <- extract_best_result(result_queries_WFO)
+res_GRIN <- extract_best_result(result_queries_GRIN)
+# create a taxa dictionary to be used to map the standardised taxa to the taxa in the dataset
+taxa_standardized_df_WFO <- as.data.frame(do.call(rbind, res_WFO))
+taxa_standardized_df_GRIN <- as.data.frame(do.call(rbind, res_GRIN))
+colnames(taxa_standardized_df_WFO) <- c('input_name', 'matched_name_WFO', 'match_type_WFO', 'status_WFO', 'output_name_WFO')
+colnames(taxa_standardized_df_GRIN) <- c('input_name', 'matched_name_GRIN', 'match_type_GRIN', 'status_GRIN', 'output_name_GRIN')
+
+taxa_standardized_df_WFO <- cbind(taxa_standardized_df_WFO, data_source = "WFO")
+taxa_standardized_df_GRIN <- cbind(taxa_standardized_df_GRIN, data_source = "GRIN")
+
+
+# Join results from GRIN with results from WFO
+taxa_standardized_df <- taxa_standardized_df_GRIN %>%
+  full_join(taxa_standardized_df_WFO, by = c("input_name" = "input_name"))
+
+taxa_standardized_df <- taxa_standardized_df %>%
+  rename(Taxon = input_name)
+matched_names <- taxa_standardized_df %>%
+  select(Taxon, matched_name_GRIN, matched_name_WFO)
+matched_names$Taxon <- as.character(matched_names$Taxon)
+
+df_joined <- df %>%
+  left_join(matched_names, by = "Taxon") #update to taxon field name
+df_joined <- df_joined %>%
+  rename(taxon_standardized_GRIN = matched_name_GRIN) %>%
+  rename(taxon_standardized_WFO = matched_name_WFO)
+
+# save 1
+df_joined <- apply(df_joined, 2, as.character)
+#write.csv(df_joined, 'CWR_genepools_for_veg_list_standardized_16_July_2025.csv', row.names = FALSE)
+write.csv(df_joined, 'CWR_genepools_for_veg_list_standardized_31_July_2025.csv', row.names = FALSE)
+
+# save 2
+df_joined <- apply(df_joined, 2, as.character)
+write.csv(df_joined, 'Vegetable species list_1450_2_standardized_21_July_2025.csv', row.names = FALSE)
+
+# save 3
+sapply(taxa_standardized_df, class)
+taxa_standardized_df <- taxa_standardized_df %>%
+  mutate(across(where(is.list), ~ sapply(., paste, collapse = "; ")))
+write.csv(taxa_standardized_df, 'CWR_genepools_for_veg_list_standardized_taxa_table.csv', row.names = FALSE)
+
+
+# save 4
+#sapply(taxa_standardized_df, class)
+taxa_standardized_df <- taxa_standardized_df %>%
+  mutate(across(where(is.list), ~ sapply(., paste, collapse = "; ")))
+write.csv(taxa_standardized_df, 'redlist_download_standardized_taxa_table_2025-09-23.csv', row.names = FALSE)
+
+
